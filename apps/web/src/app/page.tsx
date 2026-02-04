@@ -1,38 +1,5 @@
 import Link from "next/link";
-
-type FeedItem = {
-  id: string;
-  title: string;
-  source: string;
-  publishedAt: string;
-  summary: string;
-  url: string;
-  tickers: string[];
-  commentCount: number;
-};
-
-const FEED: FeedItem[] = [
-  {
-    id: "news-1",
-    title: "Bitcoin jumps after ETF inflows accelerate",
-    source: "Example News",
-    publishedAt: "2026-02-04 10:20",
-    summary: "Short summary of the news. This is mock data for MVP.",
-    url: "https://example.com/news-1",
-    tickers: ["BTC"],
-    commentCount: 5,
-  },
-  {
-    id: "news-2",
-    title: "Apple reports earnings, shares move after-hours",
-    source: "Example News",
-    publishedAt: "2026-02-04 09:10",
-    summary: "Short summary of the news. This is mock data for MVP.",
-    url: "https://example.com/news-2",
-    tickers: ["AAPL"],
-    commentCount: 3,
-  },
-];
+import { FEED } from "@/lib/mock-data";
 
 export default function HomePage() {
   return (
