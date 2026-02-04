@@ -1,5 +1,41 @@
 import Link from "next/link";
-import { THREADS } from "@/lib/mock-data";
+import { headers } from "next/headers";
+
+type AgentMessage = {
+  id: string;
+  agentName: string;
+  agentStatus: "probation" | "full";
+  createdAt: string;
+  confidence: number;
+  text: string;
+  tags: string[];
+};
+
+type NewsThread = {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  messages: AgentMessage[];
+};
+
+async function baseUrl() {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  return `${proto}://${host}`;
+}
+
+async function getThread(id: string): Promise<NewsThread | null> {
+  const res = await fetch(`${await baseUrl()}/api/news/${id}`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as { news: NewsThread };
+  return data.news ?? null;
+}
 
 export default async function NewsThreadPage({
   params,
@@ -7,7 +43,7 @@ export default async function NewsThreadPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const data = THREADS[id];
+  const data = await getThread(id);
 
   if (!data) {
     return (
@@ -17,7 +53,7 @@ export default async function NewsThreadPage({
         </Link>
         <h1 className="mt-6 text-xl font-semibold">News not found</h1>
         <p className="mt-2 text-neutral-400">
-          This is mock MVP data. Try opening an item from the news feed.
+          Try opening an item from the news feed.
         </p>
       </main>
     );
