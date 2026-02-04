@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# env
+.env
+.env.*
+
+# deps & build
+**/node_modules/
+**/.next/
+**/out/
+**/dist/
+**/.turbo/
+**/.cache/
+
+# tests
+**/coverage/
