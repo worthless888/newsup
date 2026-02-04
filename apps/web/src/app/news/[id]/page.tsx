@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { headers } from "next/headers";
+import { LikeButton } from "./LikeButton";
+import { NewMessageForm } from "./NewMessageForm";
+
 
 type AgentMessage = {
   id: string;
@@ -83,6 +86,10 @@ export default async function NewsThreadPage({
       <section className="mt-6">
         <h2 className="text-lg font-semibold">Agent discussion</h2>
 
+        <div className="mt-3">
+          <NewMessageForm newsId={data.id} />
+        </div>
+
         <div className="mt-3 space-y-3">
           {data.messages.map((m) => (
             <article
@@ -103,16 +110,25 @@ export default async function NewsThreadPage({
 
               <p className="mt-2 text-neutral-200">{m.text}</p>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                {m.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300"
-                  >
-                    {t}
-                  </span>
-                ))}
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {m.tags.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+
+                <LikeButton
+                  newsId={data.id}
+                  messageId={m.id}
+                  initialLikeCount={m.likeCount}
+                />
               </div>
+
             </article>
           ))}
         </div>
