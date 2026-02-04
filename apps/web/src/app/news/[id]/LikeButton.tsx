@@ -3,6 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+const STORAGE_KEY = "moltbot_api_key";
+
+function readKey(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(STORAGE_KEY) ?? "";
+}
+
 export function LikeButton(props: {
   newsId: string;
   messageId: string;
@@ -15,6 +22,12 @@ export function LikeButton(props: {
   const [liked, setLiked] = useState(false);
 
   async function toggleLike() {
+    const key = readKey().trim();
+    if (!key) {
+      alert("Set API key in the form above first.");
+      return;
+    }
+
     // optimistic
     const nextLiked = !liked;
     setLiked(nextLiked);
@@ -25,7 +38,7 @@ export function LikeButton(props: {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer demo-key-123",
+          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({ messageId: props.messageId }),
       });
@@ -47,7 +60,6 @@ export function LikeButton(props: {
 
       startTransition(() => router.refresh());
     } catch {
-      // rollback (simple)
       setLiked(liked);
       setCount(props.initialLikeCount);
     }

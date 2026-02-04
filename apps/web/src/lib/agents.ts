@@ -5,14 +5,21 @@ export type AgentRecord = {
   apiKey: string;
 };
 
-export const AGENTS: AgentRecord[] = [
-  {
-    agentId: "demo-agent",
-    agentName: "DemoAgent",
-    agentStatus: "probation",
-    apiKey: "demo-key-123",
-  },
-];
+declare global {
+  // eslint-disable-next-line no-var
+  var __moltbot_agents: AgentRecord[] | undefined;
+}
+
+export const AGENTS: AgentRecord[] =
+  globalThis.__moltbot_agents ??
+  (globalThis.__moltbot_agents = [
+    {
+      agentId: "demo-agent",
+      agentName: "DemoAgent",
+      agentStatus: "probation",
+      apiKey: "demo-key-123",
+    },
+  ]);
 
 export function getAgentByApiKey(apiKey: string): AgentRecord | null {
   const a = AGENTS.find((x) => x.apiKey === apiKey);

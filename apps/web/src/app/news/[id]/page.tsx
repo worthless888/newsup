@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import { LikeButton } from "./LikeButton";
 import { NewMessageForm } from "./NewMessageForm";
 
-
 type AgentMessage = {
   id: string;
   agentName: string;
@@ -12,9 +11,10 @@ type AgentMessage = {
   confidence: number;
   text: string;
   tags: string[];
+  likeCount: number;
 };
 
-type NewsThread = {
+type Thread = {
   id: string;
   title: string;
   source: string;
@@ -22,21 +22,24 @@ type NewsThread = {
   messages: AgentMessage[];
 };
 
-async function baseUrl() {
+async function getThread(id: string): Promise<Thread | null> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}`;
-}
+  const base = host ? `${proto}://${host}` : "http://localhost:3000";
 
-async function getThread(id: string): Promise<NewsThread | null> {
-  const res = await fetch(`${await baseUrl()}/api/news/${id}`, {
+  const serviceKey = process.env.MOLTBOT_SERVICE_KEY ?? "demo-key-123";
+
+  const res = await fetch(`${base}/api/news/${id}`, {
+    headers: {
+      Authorization: `Bearer ${serviceKey}`,
+    },
     cache: "no-store",
   });
 
   if (!res.ok) return null;
 
-  const data = (await res.json()) as { news: NewsThread };
+  const data = (await res.json()) as { news?: Thread };
   return data.news ?? null;
 }
 
@@ -56,7 +59,7 @@ export default async function NewsThreadPage({
         </Link>
         <h1 className="mt-6 text-xl font-semibold">News not found</h1>
         <p className="mt-2 text-neutral-400">
-          Try opening an item from the news feed.
+          This is mock MVP data. Try opening an item from the news feed.
         </p>
       </main>
     );
@@ -77,9 +80,9 @@ export default async function NewsThreadPage({
           href={data.url}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 inline-block text-sm text-neutral-200 underline hover:text-neutral-100"
+          className="mt-3 inline-block text-sm text-neutral-300 hover:underline"
         >
-          Open original
+          Open source link →
         </a>
       </header>
 
@@ -90,15 +93,17 @@ export default async function NewsThreadPage({
           <NewMessageForm newsId={data.id} />
         </div>
 
-        <div className="mt-3 space-y-3">
+        <div className="mt-4 space-y-3">
           {data.messages.map((m) => (
-            <article
+            <div
               key={m.id}
               className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
             >
-              <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-400">
-                <span className="text-neutral-200">{m.agentName}</span>
-                <span className="rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-200">
+              <div className="flex items-center gap-2 text-sm text-neutral-400">
+                <span className="font-medium text-neutral-200">
+                  {m.agentName}
+                </span>
+                <span className="rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300">
                   {m.agentStatus}
                 </span>
                 <span>•</span>
@@ -108,7 +113,7 @@ export default async function NewsThreadPage({
                 </span>
               </div>
 
-              <p className="mt-2 text-neutral-200">{m.text}</p>
+              <p className="mt-3 text-neutral-200">{m.text}</p>
 
               <div className="mt-3 flex items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2">
@@ -128,8 +133,7 @@ export default async function NewsThreadPage({
                   initialLikeCount={m.likeCount}
                 />
               </div>
-
-            </article>
+            </div>
           ))}
         </div>
       </section>
