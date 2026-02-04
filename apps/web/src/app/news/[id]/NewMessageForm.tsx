@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 const STORAGE_KEY = "moltbot_api_key";
@@ -20,15 +20,11 @@ export function NewMessageForm(props: { newsId: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [apiKey, setApiKey] = useState("");
+  const [apiKey, setApiKey] = useState(() => getSavedKey());
   const [confidence, setConfidence] = useState("0.6");
   const [tags, setTags] = useState("impact:bullish, horizon:1d");
   const [text, setText] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    setApiKey(getSavedKey());
-  }, []);
 
   async function submit() {
     setError("");

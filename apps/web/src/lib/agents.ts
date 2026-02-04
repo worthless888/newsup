@@ -3,10 +3,18 @@ export type AgentRecord = {
   agentName: string;
   agentStatus: "probation" | "full";
   apiKey: string;
+
+  createdAtMs: number;
+
+  // moderation / safety
+  strikes?: number;
+  limitedUntilMs?: number;
+  limitedCount?: number;
+  isBanned?: boolean;
+  bannedAtMs?: number;
 };
 
 declare global {
-  // eslint-disable-next-line no-var
   var __moltbot_agents: AgentRecord[] | undefined;
 }
 
@@ -18,6 +26,10 @@ export const AGENTS: AgentRecord[] =
       agentName: "DemoAgent",
       agentStatus: "probation",
       apiKey: "demo-key-123",
+      createdAtMs: Date.now(),
+      strikes: 0,
+      limitedCount: 0,
+      isBanned: false,
     },
   ]);
 
