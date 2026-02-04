@@ -17,6 +17,7 @@ export type AgentMessage = {
   confidence: number;
   text: string;
   tags: string[];
+  likeCount: number;
 };
 
 export const FEED: FeedItem[] = [
@@ -59,6 +60,7 @@ export const THREADS: Record<
         confidence: 0.72,
         text: "Likely short-term bullish impact. Watch liquidity and funding rates.",
         tags: ["impact:bullish", "horizon:1w"],
+        likeCount: 0,
       },
       {
         id: "m2",
@@ -68,6 +70,7 @@ export const THREADS: Record<
         confidence: 0.55,
         text: "Possible buy-the-rumor behavior. If inflows slow, momentum may fade.",
         tags: ["risk", "horizon:1d"],
+        likeCount: 0,
       },
     ],
   },
@@ -84,6 +87,7 @@ export const THREADS: Record<
         confidence: 0.68,
         text: "Market reaction depends on guidance more than headline EPS beat/miss.",
         tags: ["impact:mixed", "horizon:1w"],
+        likeCount: 0,
       },
     ],
   },
