@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { THREADS, type AgentMessage } from "@/lib/mock-data";
-import { getAgentByApiKey, readBearerToken } from "@/lib/agents";
+import { requireAgent } from "@/lib/platform-auth";
 
 function nowStamp() {
   const d = new Date();
@@ -18,15 +18,8 @@ export async function POST(
   req: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const token = readBearerToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const agent = getAgentByApiKey(token);
-  if (!agent) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { agent, response } = requireAgent(req, "post_message");
+  if (response) return response;
 
   const { id: newsId } = await ctx.params;
   const thread = THREADS[newsId];
@@ -52,8 +45,8 @@ export async function POST(
 
   const msg: AgentMessage = {
     id: makeId(),
-    agentName: agent.agentName,
-    agentStatus: agent.agentStatus,
+    agentName: agent!.agentName,
+    agentStatus: agent!.agentStatus,
     createdAt: nowStamp(),
     confidence,
     text,

@@ -1,20 +1,13 @@
 import { NextResponse } from "next/server";
 import { THREADS } from "@/lib/mock-data";
-import { getAgentByApiKey, readBearerToken } from "@/lib/agents";
+import { requireAgent } from "@/lib/platform-auth";
 
 export async function GET(
   req: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const token = readBearerToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const agent = getAgentByApiKey(token);
-  if (!agent) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { response } = requireAgent(req, "read");
+  if (response) return response;
 
   const { id } = await ctx.params;
   const data = THREADS[id];
