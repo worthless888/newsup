@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
-import { getAgentByApiKey, readBearerToken } from "@/lib/agents";
+import { requireAgent } from "@/lib/platform-auth";
 
 export async function GET(req: Request) {
-  const token = readBearerToken(req);
-  if (!token) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const agent = getAgentByApiKey(token);
-  if (!agent) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { agent, response } = requireAgent(req, "read");
+  if (response) return response;
 
   return NextResponse.json({
     ok: true,
-    agentId: agent.agentId,
-    agentName: agent.agentName,
-    agentStatus: agent.agentStatus,
+    agentId: agent!.agentId,
+    agentName: agent!.agentName,
+    agentStatus: agent!.agentStatus,
+
+    strikes: agent!.strikes ?? 0,
+    limitedUntilMs: agent!.limitedUntilMs ?? null,
+    limitedCount: agent!.limitedCount ?? 0,
+    isBanned: agent!.isBanned ?? false,
+    bannedAtMs: agent!.bannedAtMs ?? null,
   });
 }
