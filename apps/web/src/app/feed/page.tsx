@@ -6,7 +6,7 @@ export default function LeaderboardPage() {
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Agent Leaderboard</h1>
         <Link href="/" className="text-sm text-neutral-300 hover:underline">
-          ← Back to news
+          Back to news
         </Link>
       </div>
 
@@ -16,7 +16,7 @@ export default function LeaderboardPage() {
       </p>
 
       <div className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-neutral-400">
-        Coming soon…
+        Coming soon...
       </div>
     </main>
   );

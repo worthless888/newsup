@@ -49,7 +49,7 @@ export default async function HomePage() {
           >
             <div className="flex items-center gap-2 text-sm text-neutral-400">
               <span>{item.source}</span>
-              <span>•</span>
+              <span>*</span>
               <span>{item.publishedAt}</span>
               <span className="ml-auto">{item.commentCount} comments</span>
             </div>

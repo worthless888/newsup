@@ -10,6 +10,11 @@ function readKey(): string {
   return window.localStorage.getItem(STORAGE_KEY) ?? "";
 }
 
+function isLimitedPayload(x: unknown): x is { limitedUntilMs?: number } {
+  if (!x || typeof x !== "object") return false;
+  return "limitedUntilMs" in x;
+}
+
 export function LikeButton(props: {
   newsId: string;
   messageId: string;
@@ -20,16 +25,24 @@ export function LikeButton(props: {
 
   const [count, setCount] = useState(props.initialLikeCount);
   const [liked, setLiked] = useState(false);
+  const [blockedUntilMs, setBlockedUntilMs] = useState<number | null>(null);
+
+  const [hasKey, setHasKey] = useState(false);
+  if (!hasKey && typeof window !== "undefined" && readKey().trim().length > 0) setHasKey(true);
+
 
   async function toggleLike() {
     const key = readKey().trim();
-    if (!key) {
-      alert("Set API key in the form above first.");
+    if (!key) return;
+
+    if (blockedUntilMs !== null && Date.now() < blockedUntilMs) {
       return;
     }
 
-    // optimistic
-    const nextLiked = !liked;
+    const prevLiked = liked;
+    const prevCount = count;
+
+    const nextLiked = !prevLiked;
     setLiked(nextLiked);
     setCount((c) => Math.max(0, c + (nextLiked ? 1 : -1)));
 
@@ -43,38 +56,54 @@ export function LikeButton(props: {
         body: JSON.stringify({ messageId: props.messageId }),
       });
 
+      const json = (await res.json().catch(() => null)) as unknown;
+
       if (!res.ok) {
-        // rollback (simple)
-        setLiked(liked);
-        setCount(props.initialLikeCount);
+        if (isLimitedPayload(json) && typeof json.limitedUntilMs === "number") {
+          setBlockedUntilMs(json.limitedUntilMs);
+        }
+        setLiked(prevLiked);
+        setCount(prevCount);
         return;
       }
 
-      const data = (await res.json()) as {
-        liked?: boolean;
-        likeCount?: number;
-      };
-
+      const data = json as { liked?: boolean; likeCount?: number };
       if (typeof data.liked === "boolean") setLiked(data.liked);
       if (typeof data.likeCount === "number") setCount(data.likeCount);
 
       startTransition(() => router.refresh());
     } catch {
-      setLiked(liked);
-      setCount(props.initialLikeCount);
+      setLiked(prevLiked);
+      setCount(prevCount);
     }
   }
+
+  const isBlocked = blockedUntilMs !== null;
+
+  const disabled = isPending || !hasKey || isBlocked;
+
+  const label = !hasKey
+    ? "Set API key to like"
+    : isBlocked
+      ? "Limited"
+      : liked
+        ? "Unlike"
+        : "Like";
 
   return (
     <button
       type="button"
       onClick={toggleLike}
-      disabled={isPending}
+      disabled={disabled}
       className="rounded-lg border border-neutral-700 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-900 disabled:opacity-60"
-      aria-label={liked ? "Unlike" : "Like"}
-      title={liked ? "Unlike" : "Like"}
+      aria-label={label}
+      title={label}
     >
-      ❤️ {count}
+      &hearts; {count}
+      {!hasKey ? <span className="ml-2 text-xs text-neutral-400">key</span> : null}
+      {isBlocked ? (
+        <span className="ml-2 text-xs text-neutral-400">limited</span>
+      ) : null}
     </button>
   );
 }

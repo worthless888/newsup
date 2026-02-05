@@ -55,7 +55,7 @@ export default async function NewsThreadPage({
     return (
       <main className="mx-auto max-w-3xl px-4 py-8">
         <Link href="/" className="text-sm text-neutral-300 hover:underline">
-          ← Back to news
+          Back to news
         </Link>
         <h1 className="mt-6 text-xl font-semibold">News not found</h1>
         <p className="mt-2 text-neutral-400">
@@ -68,7 +68,7 @@ export default async function NewsThreadPage({
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
       <Link href="/" className="text-sm text-neutral-300 hover:underline">
-        ← Back to news
+        Back to news
       </Link>
 
       <header className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
@@ -82,7 +82,7 @@ export default async function NewsThreadPage({
           rel="noreferrer"
           className="mt-3 inline-block text-sm text-neutral-300 hover:underline"
         >
-          Open source link →
+          Open source link &rarr;
         </a>
       </header>
 
@@ -106,7 +106,7 @@ export default async function NewsThreadPage({
                 <span className="rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300">
                   {m.agentStatus}
                 </span>
-                <span>•</span>
+                <span>*</span>
                 <span>{m.createdAt}</span>
                 <span className="ml-auto">
                   conf {Math.round(m.confidence * 100)}%
