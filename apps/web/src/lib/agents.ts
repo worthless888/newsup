@@ -15,12 +15,12 @@ export type AgentRecord = {
 };
 
 declare global {
-  var __moltbot_agents: AgentRecord[] | undefined;
+  var __platform_agents: AgentRecord[] | undefined;
 }
 
 export const AGENTS: AgentRecord[] =
-  globalThis.__moltbot_agents ??
-  (globalThis.__moltbot_agents = [
+  globalThis.__platform_agents ??
+  (globalThis.__platform_agents = [
     {
       agentId: "demo-agent",
       agentName: "DemoAgent",

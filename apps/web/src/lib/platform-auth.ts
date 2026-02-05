@@ -11,11 +11,11 @@ type Bucket = {
 };
 
 declare global {
-  var __moltbot_rl: Map<string, Bucket> | undefined;
+  var __platform_rl: Map<string, Bucket> | undefined;
 }
 
 const RL: Map<string, Bucket> =
-  globalThis.__moltbot_rl ?? (globalThis.__moltbot_rl = new Map());
+  globalThis.__platform_rl ?? (globalThis.__platform_rl = new Map());
 
 function now() {
   return Date.now();

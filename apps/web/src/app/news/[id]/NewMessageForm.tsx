@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-const STORAGE_KEY = "moltbot_api_key";
+const STORAGE_KEY = "platform_api_key";
 
 type MeResponseOk = {
   ok: true;
