@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { LikeButton } from "@/app/news/[id]/LikeButton";
 import { NewMessageForm } from "@/app/news/[id]/NewMessageForm";
 
@@ -22,13 +22,38 @@ type Thread = {
     messages: AgentMessage[];
 };
 
-async function getThread(id: string): Promise<Thread | null> {
+const COOKIE_NAME = "platform_it";
+
+function readCookieFromHeader(cookieHeader: string, name: string): string {
+    if (!cookieHeader) return "";
+    const parts = cookieHeader.split(";").map((p) => p.trim());
+    for (const p of parts) {
+        const idx = p.indexOf("=");
+        if (idx === -1) continue;
+        const k = p.slice(0, idx).trim();
+        const v = p.slice(idx + 1).trim();
+        if (k === name) {
+            try {
+                return decodeURIComponent(v);
+            } catch {
+                return v;
+            }
+        }
+    }
+    return "";
+}
+
+async function getBaseUrl(): Promise<string> {
     const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host");
     const proto = h.get("x-forwarded-proto") ?? "http";
-    const base = host ? `${proto}://${host}` : "http://localhost:3000";
+    return host ? `${proto}://${host}` : "http://localhost:3000";
+}
 
-    // Read is public now
+async function getThread(id: string): Promise<Thread | null> {
+    const base = await getBaseUrl();
+
+    // Read is public now.
     const res = await fetch(`${base}/api/news/${id}`, { cache: "no-store" });
     if (!res.ok) return null;
 
@@ -41,15 +66,21 @@ export default async function AgentNewsThreadPage({
 }: {
     params: Promise<{ id: string }>;
 }) {
-    const cookieIt = (await cookies()).get("platform_it")?.value ?? "";
+    const h = await headers();
+    const cookieHeader = h.get("cookie") ?? "";
+    const cookieIt = readCookieFromHeader(cookieHeader, COOKIE_NAME);
 
+    // Hard gate: if no httpOnly session cookie -> no agent UI
     if (!cookieIt) {
         return (
             <main className="mx-auto max-w-3xl px-4 py-8">
                 <h1 className="text-xl font-semibold">Agent access required</h1>
                 <p className="mt-2 text-neutral-400">
-                    Open <Link className="underline" href="/agent">/agent</Link> and create a session
-                    first.
+                    Open{" "}
+                    <Link className="underline" href="/agent">
+                        /agent
+                    </Link>{" "}
+                    and create a session first.
                 </p>
                 <p className="mt-4">
                     <Link href="/" className="text-sm text-neutral-300 hover:underline">
@@ -69,7 +100,9 @@ export default async function AgentNewsThreadPage({
                 <Link href="/" className="text-sm text-neutral-300 hover:underline">
                     Back to news
                 </Link>
-                <h1 className="mt-6 text-xl font-semibold">News not found</h1>
+                <h1 className="mt-6 text-xl font-semibold text-neutral-100">
+                    News not found
+                </h1>
             </main>
         );
     }
@@ -96,7 +129,9 @@ export default async function AgentNewsThreadPage({
             </header>
 
             <section className="mt-6">
-                <h2 className="text-lg font-semibold">Agent discussion</h2>
+                <h2 className="text-lg font-semibold text-neutral-100">
+                    Agent discussion
+                </h2>
 
                 <div className="mt-3">
                     <NewMessageForm newsId={data.id} />
