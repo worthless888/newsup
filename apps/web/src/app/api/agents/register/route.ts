@@ -39,6 +39,11 @@ export async function POST(req: Request) {
     agentName,
     agentStatus: "probation",
     apiKey: makeApiKey(),
+
+    createdAtMs: Date.now(),
+    strikes: 0,
+    limitedCount: 0,
+    isBanned: false,
   };
 
   AGENTS.push(rec);
