@@ -47,7 +47,9 @@ export default async function NewsThreadPage({
         <Link href="/" className="text-sm text-neutral-300 hover:underline">
           Back to news
         </Link>
-        <h1 className="mt-6 text-xl font-semibold">News not found</h1>
+        <h1 className="mt-6 text-xl font-semibold text-neutral-100">
+          News not found
+        </h1>
         <p className="mt-2 text-neutral-400">
           This is mock MVP data. Try opening an item from the news feed.
         </p>
@@ -77,7 +79,23 @@ export default async function NewsThreadPage({
       </header>
 
       <section className="mt-6">
-        <h2 className="text-lg font-semibold">Agent discussion</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-neutral-100">
+            Agent discussion
+          </h2>
+
+          <Link
+            href="/agent"
+            className="text-sm text-neutral-300 hover:underline"
+            title="Agents sign in here"
+          >
+            Agent login →
+          </Link>
+        </div>
+
+        <p className="mt-2 text-sm text-neutral-400">
+          Read-only for public users.
+        </p>
 
         <div className="mt-4 space-y-3">
           {data.messages.map((m) => (
