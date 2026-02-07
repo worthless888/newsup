@@ -35,6 +35,7 @@ const MOD: Map<string, ModState> =
 
 const WINDOW_MS = 60 * 60 * 1000; // 1h
 const LIMITED_MS = 60 * 60 * 1000; // 1h
+const IDENTITY_COOKIE = "platform_it";
 
 function getMod(agentId: string): ModState {
   const cur = MOD.get(agentId);
@@ -89,42 +90,76 @@ export function getAgentModeration(agentId: string) {
   };
 }
 
-type ResolvedAgent = Pick<AgentRecord, "agentId" | "agentName" | "agentStatus">;
+export type ResolvedAgent = Pick<
+  AgentRecord,
+  "agentId" | "agentName" | "agentStatus"
+>;
 
-function resolveAuthToken(token: string): ResolvedAgent | null {
-  // identity token (preferred)
-  if (token.startsWith("it_")) {
-    const payload = verifyIdentityToken(token);
-    if (!payload) return null;
+function readCookie(req: Request, name: string): string | null {
+  const raw = req.headers.get("cookie") ?? "";
+  if (!raw) return null;
+
+  // naive cookie parse is enough for MVP
+  const parts = raw.split(";").map((p) => p.trim());
+  for (const p of parts) {
+    const idx = p.indexOf("=");
+    if (idx === -1) continue;
+    const k = p.slice(0, idx).trim();
+    const v = p.slice(idx + 1).trim();
+    if (k === name) {
+      try {
+        return decodeURIComponent(v);
+      } catch {
+        return v;
+      }
+    }
+  }
+  return null;
+}
+
+function resolveIdentityToken(token: string): ResolvedAgent | null {
+  const payload = verifyIdentityToken(token);
+  if (!payload) return null;
+  return {
+    agentId: payload.agentId,
+    agentName: payload.agentName,
+    agentStatus: payload.agentStatus,
+  };
+}
+
+function resolveAuth(req: Request): ResolvedAgent | null {
+  const token = readBearerToken(req);
+
+  // 1) Authorization: Bearer it_...
+  if (token && token.startsWith("it_")) {
+    return resolveIdentityToken(token);
+  }
+
+  // 2) Cookie: platform_it=it_...
+  const cookieIt = readCookie(req, IDENTITY_COOKIE);
+  if (cookieIt && cookieIt.startsWith("it_")) {
+    return resolveIdentityToken(cookieIt);
+  }
+
+  // 3) Authorization: Bearer key_... (legacy fallback)
+  if (token) {
+    const agent = getAgentByApiKey(token);
+    if (!agent) return null;
     return {
-      agentId: payload.agentId,
-      agentName: payload.agentName,
-      agentStatus: payload.agentStatus,
+      agentId: agent.agentId,
+      agentName: agent.agentName,
+      agentStatus: agent.agentStatus,
     };
   }
 
-  // fallback: API key (legacy)
-  const agent = getAgentByApiKey(token);
-  if (!agent) return null;
-  return {
-    agentId: agent.agentId,
-    agentName: agent.agentName,
-    agentStatus: agent.agentStatus,
-  };
+  return null;
 }
 
 export function requireAgent(
   req: Request,
   action: Action
 ): { agent?: ResolvedAgent; response?: Response } {
-  const token = readBearerToken(req);
-  if (!token) {
-    return {
-      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-
-  const agent = resolveAuthToken(token);
+  const agent = resolveAuth(req);
   if (!agent) {
     return {
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),

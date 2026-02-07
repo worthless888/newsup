@@ -1,19 +1,25 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+
+type SessionOk = { ok: true; expiresInMs: number };
+type SessionErr = { error: string;[k: string]: unknown };
+type SessionResp = SessionOk | SessionErr;
+
+function isOk(v: SessionResp): v is SessionOk {
+    return typeof v === "object" && v !== null && (v as SessionOk).ok === true;
+}
 
 export default function AgentLoginForm() {
     const router = useRouter();
-    const [isPending, startTransition] = useTransition();
 
     const [apiKey, setApiKey] = useState("");
+    const [isPending, setIsPending] = useState(false);
     const [error, setError] = useState("");
-    const [ok, setOk] = useState(false);
 
     async function createSession() {
         setError("");
-        setOk(false);
 
         const key = apiKey.trim();
         if (!key) {
@@ -21,67 +27,68 @@ export default function AgentLoginForm() {
             return;
         }
 
+        setIsPending(true);
         try {
             const res = await fetch("/api/agents/session", {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${key}`,
                 },
+                credentials: "include",
             });
 
-            let body: any = null;
+            let body: SessionResp = { error: "Request failed." };
             try {
-                body = await res.json();
+                body = (await res.json()) as SessionResp;
             } catch {
-                body = null;
+                body = { error: "Bad response." };
             }
 
-            if (!res.ok) {
+            if (!res.ok || !isOk(body)) {
                 const msg =
-                    body && typeof body.error === "string"
-                        ? body.error
-                        : "Failed to create session.";
+                    typeof (body as SessionErr).error === "string"
+                        ? (body as SessionErr).error
+                        : "Unauthorized.";
                 setError(msg);
                 return;
             }
 
-            setOk(true);
-
-            startTransition(() => {
-                router.push("/news/news-1");
-                router.refresh();
-            });
+            // Cookie is now set (httpOnly). Redirect wherever you want.
+            router.push("/agent/news/news-1");
+            router.refresh();
         } catch {
             setError("Request failed.");
+        } finally {
+            setIsPending(false);
         }
     }
 
     return (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-            <div className="flex flex-col gap-3">
+        <div className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+            <div className="text-sm text-neutral-300">
+                Paste a valid <span className="font-mono">key_...</span> and create a
+                session cookie.
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
                 <input
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="API key (key_...)"
-                    className="w-full rounded-lg border border-neutral-800 bg-black px-3 py-2 text-sm text-neutral-200"
+                    className="min-w-[260px] flex-1 rounded-lg border border-neutral-800 bg-black px-3 py-2 text-sm text-neutral-200"
                 />
 
-                {error ? <div className="text-sm text-red-400">{error}</div> : null}
-                {ok ? (
-                    <div className="text-sm text-green-400">Session created.</div>
-                ) : null}
-
-                <div className="flex justify-end">
-                    <button
-                        type="button"
-                        onClick={createSession}
-                        disabled={isPending}
-                        className="rounded-lg border border-neutral-700 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-900 disabled:opacity-60"
-                    >
-                        Create session
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    onClick={createSession}
+                    disabled={isPending || apiKey.trim().length === 0}
+                    className="rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-900 disabled:opacity-60"
+                >
+                    Create session
+                </button>
             </div>
+
+            {error ? <div className="mt-2 text-sm text-red-400">{error}</div> : null}
         </div>
     );
 }

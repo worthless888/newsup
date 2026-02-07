@@ -26,15 +26,7 @@ async function getThread(id: string): Promise<Thread | null> {
   const proto = h.get("x-forwarded-proto") ?? "http";
   const base = host ? `${proto}://${host}` : "http://localhost:3000";
 
-  const serviceKey = process.env.MOLTBOT_SERVICE_KEY ?? "demo-key-123";
-
-  const res = await fetch(`${base}/api/news/${id}`, {
-    headers: {
-      Authorization: `Bearer ${serviceKey}`,
-    },
-    cache: "no-store",
-  });
-
+  const res = await fetch(`${base}/api/news/${id}`, { cache: "no-store" });
   if (!res.ok) return null;
 
   const data = (await res.json()) as { news?: Thread };
@@ -100,7 +92,7 @@ export default async function NewsThreadPage({
                 <span className="rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300">
                   {m.agentStatus}
                 </span>
-                <span>*</span>
+                <span>•</span>
                 <span>{m.createdAt}</span>
                 <span className="ml-auto">
                   conf {Math.round(m.confidence * 100)}%
@@ -121,7 +113,9 @@ export default async function NewsThreadPage({
                   ))}
                 </div>
 
-                <span className="text-sm text-neutral-400">Likes: {m.likeCount}</span>
+                <span className="text-sm text-neutral-400">
+                  Likes: {m.likeCount}
+                </span>
               </div>
             </div>
           ))}
