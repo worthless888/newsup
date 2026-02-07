@@ -1,11 +1,16 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { usePlatformKey } from "@/lib/platform-key";
+import { useState } from "react";
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
+function isObject(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null;
+}
+
+function getErrorMessage(json: unknown, fallback: string) {
+  if (isObject(json) && typeof json.error === "string" && json.error.trim()) {
+    return json.error;
+  }
+  return fallback;
 }
 
 export function LikeButton(props: {
@@ -13,125 +18,51 @@ export function LikeButton(props: {
   messageId: string;
   initialLikeCount: number;
 }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [likeCount, setLikeCount] = useState(props.initialLikeCount);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const apiKey = usePlatformKey();
-  const hasKey = useMemo(() => apiKey.trim().length > 0, [apiKey]);
-
-  const [count, setCount] = useState(props.initialLikeCount);
-  const [liked, setLiked] = useState(false);
-  const [limited, setLimited] = useState(false);
-  const [banned, setBanned] = useState(false);
-  const [error, setError] = useState("");
-
-  const disabled = isPending || !hasKey || limited || banned;
-
-  async function toggleLike() {
-    setError("");
-
-    const key = apiKey.trim();
-    if (!key) return;
-
-    // optimistic
-    const nextLiked = !liked;
-    setLiked(nextLiked);
-    setCount((c) => Math.max(0, c + (nextLiked ? 1 : -1)));
-
-    let res: Response;
-    let body: unknown = null;
-
+  async function toggle() {
+    setError(null);
+    setBusy(true);
     try {
-      res = await fetch(`/api/news/${props.newsId}/like`, {
+      const res = await fetch(`/api/news/${props.newsId}/like`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
-        },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messageId: props.messageId }),
       });
 
-      try {
-        body = await res.json();
-      } catch {
-        body = null;
+      const json: unknown = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(getErrorMessage(json, `Request failed (${res.status})`));
+        return;
       }
-    } catch {
-      // rollback to server snapshot
-      setLiked(false);
-      setCount(props.initialLikeCount);
-      setError("Request failed.");
-      return;
+
+      if (isObject(json) && typeof json.likeCount === "number") {
+        setLikeCount(json.likeCount);
+      }
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Network error";
+      setError(msg);
+    } finally {
+      setBusy(false);
     }
-
-    if (!res.ok) {
-      // rollback to server snapshot
-      setLiked(false);
-      setCount(props.initialLikeCount);
-
-      if (res.status === 401) {
-        setError("Unauthorized.");
-        return;
-      }
-      if (res.status === 403) {
-        setBanned(true);
-        setError("Banned.");
-        return;
-      }
-      if (res.status === 429) {
-        setLimited(true);
-        const msg =
-          isRecord(body) && typeof body.error === "string"
-            ? body.error
-            : "Rate limited.";
-        setError(msg);
-        return;
-      }
-
-      if (isRecord(body) && typeof body.error === "string") {
-        setError(body.error);
-        return;
-      }
-
-      setError("Failed.");
-      return;
-    }
-
-    if (isRecord(body)) {
-      if (typeof body.liked === "boolean") setLiked(body.liked);
-      if (typeof body.likeCount === "number") setCount(body.likeCount);
-    }
-
-    startTransition(() => router.refresh());
   }
-
-  const label = !hasKey
-    ? "Set API key"
-    : banned
-      ? "Banned"
-      : limited
-        ? "Limited"
-        : liked
-          ? "Unlike"
-          : "Like";
 
   return (
     <div className="flex items-center gap-2">
       <button
         type="button"
-        onClick={toggleLike}
-        disabled={disabled}
-        className="rounded-lg border border-neutral-700 px-3 py-1 text-sm text-neutral-200 hover:bg-neutral-900 disabled:opacity-60"
-        aria-label={label}
-        title={label}
+        onClick={toggle}
+        disabled={busy}
+        className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-100 disabled:opacity-50"
       >
-        LOVE {count}
+        LOVE {likeCount}
       </button>
-
       {error ? <span className="text-xs text-red-400">{error}</span> : null}
-      {!hasKey ? <span className="text-xs text-neutral-400">key</span> : null}
-      {limited ? <span className="text-xs text-neutral-400">limited</span> : null}
-      {banned ? <span className="text-xs text-neutral-400">banned</span> : null}
     </div>
   );
 }
