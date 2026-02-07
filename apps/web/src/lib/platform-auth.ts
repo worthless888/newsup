@@ -1,165 +1,190 @@
 import { NextResponse } from "next/server";
-import type { AgentRecord } from "@/lib/agents";
-import { getAgentByApiKey, readBearerToken } from "@/lib/agents";
+import { AGENTS, getAgentByApiKey, readBearerToken, type AgentRecord } from "@/lib/agents";
+import { verifyIdentityToken } from "@/lib/identity";
 
-export type Action = "read" | "post_message" | "toggle_like" | "register";
+type Action = "read" | "post_message" | "toggle_like";
 
 type Bucket = {
+  key: string;
   windowStartMs: number;
   count: number;
-  violations: number; // how many times the agent hit the limit in the current window
 };
 
 declare global {
   var __platform_rl: Map<string, Bucket> | undefined;
+  var __platform_mod: Map<string, ModState> | undefined;
 }
 
-const RL: Map<string, Bucket> =
-  globalThis.__platform_rl ?? (globalThis.__platform_rl = new Map());
+type ModState = {
+  strikes: number;
+  limitedUntilMs: number | null;
+  limitedCount: number;
+  isBanned: boolean;
+  bannedAtMs: number | null;
+};
 
-function now() {
+const RL = globalThis.__platform_rl ?? (globalThis.__platform_rl = new Map());
+const MOD = globalThis.__platform_mod ?? (globalThis.__platform_mod = new Map());
+
+function getOrCreateMod(agentId: string): ModState {
+  const s = MOD.get(agentId);
+  if (s) return s;
+  const fresh: ModState = {
+    strikes: 0,
+    limitedUntilMs: null,
+    limitedCount: 0,
+    isBanned: false,
+    bannedAtMs: null,
+  };
+  MOD.set(agentId, fresh);
+  return fresh;
+}
+
+function getLimits(action: Action, agent: AgentRecord) {
+  const isProbation = agent.agentStatus === "probation";
+
+  // You asked for hard limits + bans. Keep conservative for MVP.
+  if (action === "read") {
+    return { perHour: isProbation ? 120 : 600 };
+  }
+  if (action === "post_message") {
+    return { perHour: isProbation ? 3 : 30 };
+  }
+  // toggle_like
+  return { perHour: isProbation ? 30 : 300 };
+}
+
+function nowMs() {
   return Date.now();
 }
 
-const HOUR_MS = 60 * 60 * 1000;
-
-function getLimits(agent: AgentRecord) {
-  // Strict limits by default to reduce abuse risk.
-  // probation: very low quotas
-  // full: higher quotas, still bounded
-  if (agent.agentStatus === "full") {
-    return {
-      post_message_per_hour: 30,
-      toggle_like_per_hour: 200,
-      reads_per_hour: 5000,
-    };
-  }
-
-  return {
-    post_message_per_hour: 3,
-    toggle_like_per_hour: 30,
-    reads_per_hour: 1000,
-  };
-}
-
-function getLimitForAction(agent: AgentRecord, action: Action) {
-  const lim = getLimits(agent);
-  if (action === "post_message") return lim.post_message_per_hour;
-  if (action === "toggle_like") return lim.toggle_like_per_hour;
-  if (action === "read") return lim.reads_per_hour;
-  return 0;
-}
-
-function bucketKey(agentId: string, action: Action) {
+function rateKey(agentId: string, action: Action) {
   return `${agentId}:${action}`;
 }
 
-function ensureBucket(key: string) {
-  const t = now();
-  const b = RL.get(key);
+function checkRate(agent: AgentRecord, action: Action): { ok: true } | { ok: false; response: Response } {
+  const mod = getOrCreateMod(agent.agentId);
 
-  if (!b) {
-    const nb: Bucket = { windowStartMs: t, count: 0, violations: 0 };
-    RL.set(key, nb);
-    return nb;
-  }
-
-  if (t - b.windowStartMs >= HOUR_MS) {
-    b.windowStartMs = t;
-    b.count = 0;
-    b.violations = 0;
-  }
-
-  return b;
-}
-
-function isTemporarilyLimited(agent: AgentRecord) {
-  return typeof agent.limitedUntilMs === "number" && agent.limitedUntilMs > now();
-}
-
-function isBanned(agent: AgentRecord) {
-  return agent.isBanned === true;
-}
-
-function punish(agent: AgentRecord, b: Bucket) {
-  // Escalation strategy:
-  // - each limit hit increases violations + strikes
-  // - 3 violations within the current window => temporary limited for 1 hour
-  // - 3 temporary limits lifetime => permanent ban
-  b.violations += 1;
-  agent.strikes = (agent.strikes ?? 0) + 1;
-
-  if (b.violations >= 3) {
-    agent.limitedUntilMs = now() + HOUR_MS;
-    agent.limitedCount = (agent.limitedCount ?? 0) + 1;
-    b.violations = 0;
-  }
-
-  if ((agent.limitedCount ?? 0) >= 3) {
-    agent.isBanned = true;
-    agent.bannedAtMs = now();
-  }
-}
-
-export function requireAgent(req: Request, action: Action) {
-  const token = readBearerToken(req);
-  if (!token) {
+  if (mod.isBanned) {
     return {
-      agent: null,
-      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-
-  const agent = getAgentByApiKey(token);
-  if (!agent) {
-    return {
-      agent: null,
-      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-
-  if (isBanned(agent)) {
-    return {
-      agent: null,
+      ok: false,
       response: NextResponse.json({ error: "Banned" }, { status: 403 }),
     };
   }
 
-  if (isTemporarilyLimited(agent)) {
+  if (mod.limitedUntilMs !== null && nowMs() < mod.limitedUntilMs) {
     return {
-      agent: null,
+      ok: false,
       response: NextResponse.json(
-        { error: "Limited", limitedUntilMs: agent.limitedUntilMs },
+        { error: "Limited", limitedUntilMs: mod.limitedUntilMs },
         { status: 429 }
       ),
     };
   }
 
-  if (action !== "register") {
-    const limit = getLimitForAction(agent, action);
-    const k = bucketKey(agent.agentId, action);
-    const b = ensureBucket(k);
+  const { perHour } = getLimits(action, agent);
 
-    if (b.count >= limit) {
-      punish(agent, b);
-      return {
-        agent: null,
-        response: NextResponse.json(
-          {
-            error: "Too Many Requests",
-            action,
-            limitPerHour: limit,
-            strikes: agent.strikes ?? 0,
-            limitedUntilMs: agent.limitedUntilMs ?? null,
-            isBanned: agent.isBanned ?? false,
-          },
-          { status: 429 }
-        ),
-      };
-    }
+  const key = rateKey(agent.agentId, action);
+  const windowMs = 60 * 60 * 1000;
 
-    b.count += 1;
+  const b = RL.get(key);
+  const t = nowMs();
+
+  if (!b || t - b.windowStartMs >= windowMs) {
+    RL.set(key, { key, windowStartMs: t, count: 1 });
+    return { ok: true };
   }
 
-  return { agent, response: null };
+  b.count += 1;
+
+  if (b.count <= perHour) return { ok: true };
+
+  // strike escalation
+  mod.strikes += 1;
+
+  if (mod.strikes >= 3) {
+    mod.limitedUntilMs = t + 60 * 60 * 1000; // 1h limited
+    mod.limitedCount += 1;
+  }
+
+  if (mod.limitedCount >= 3) {
+    mod.isBanned = true;
+    mod.bannedAtMs = t;
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "Banned" }, { status: 403 }),
+    };
+  }
+
+  return {
+    ok: false,
+    response: NextResponse.json(
+      {
+        error: "Too Many Requests",
+        action,
+        limitPerHour: perHour,
+        strikes: mod.strikes,
+        limitedUntilMs: mod.limitedUntilMs,
+        isBanned: mod.isBanned,
+      },
+      { status: 429 }
+    ),
+  };
+}
+
+function readIdentityHeader(req: Request): string | null {
+  const h = req.headers.get("x-platform-identity");
+  return h?.trim() ? h.trim() : null;
+}
+
+function getAgentByIdentity(req: Request): AgentRecord | null {
+  const token = readIdentityHeader(req);
+  if (!token) return null;
+
+  const secret = process.env.PLATFORM_IDENTITY_SECRET ?? "dev-secret-change-me";
+  const v = verifyIdentityToken(token, secret);
+  if (!v.ok) return null;
+
+  const agent = AGENTS.find((a) => a.agentId === v.agentId);
+  return agent ?? null;
+}
+
+export function requireAgent(
+  req: Request,
+  action: Action
+): { agent: AgentRecord | null; response: Response | null } {
+  // Preferred: identity token
+  const byIdentity = getAgentByIdentity(req);
+  if (byIdentity) {
+    const r = checkRate(byIdentity, action);
+    if (!r.ok) return { agent: byIdentity, response: r.response };
+    return { agent: byIdentity, response: null };
+  }
+
+  // Backward compatibility for now: Bearer API key (we will remove later)
+  const bearer = readBearerToken(req);
+  if (bearer) {
+    const a = getAgentByApiKey(bearer);
+    if (a) {
+      const r = checkRate(a, action);
+      if (!r.ok) return { agent: a, response: r.response };
+      return { agent: a, response: null };
+    }
+  }
+
+  return {
+    agent: null,
+    response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+  };
+}
+
+export function getModerationState(agentId: string) {
+  const s = getOrCreateMod(agentId);
+  return {
+    strikes: s.strikes,
+    limitedUntilMs: s.limitedUntilMs,
+    limitedCount: s.limitedCount,
+    isBanned: s.isBanned,
+    bannedAtMs: s.bannedAtMs,
+  };
 }
