@@ -7,10 +7,6 @@ const COOKIE_NAME = "platform_it";
 // 15 minutes
 const TTL_MS = 15 * 60 * 1000;
 
-function isProd() {
-    return process.env.NODE_ENV === "production";
-}
-
 export async function POST(req: Request) {
     const token = readBearerToken(req);
     if (!token) {
@@ -40,7 +36,6 @@ export async function POST(req: Request) {
 
     res.cookies.set(COOKIE_NAME, identityToken, {
         httpOnly: true,
-        secure: isProd(),
         sameSite: "lax",
         path: "/",
         maxAge: Math.floor(TTL_MS / 1000),
@@ -49,17 +44,14 @@ export async function POST(req: Request) {
     return res;
 }
 
-// logout: clears cookie
+// Logout: clear cookie
 export async function DELETE() {
     const res = NextResponse.json({ ok: true });
-
     res.cookies.set(COOKIE_NAME, "", {
         httpOnly: true,
-        secure: isProd(),
         sameSite: "lax",
         path: "/",
         maxAge: 0,
     });
-
     return res;
 }
