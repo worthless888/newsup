@@ -48,6 +48,7 @@ export default function AgentLoginForm() {
         try {
             const res = await fetch("/api/agents/session", {
                 method: "POST",
+                credentials: "include",
                 headers: { Authorization: `Bearer ${key}` },
             });
 
@@ -81,7 +82,9 @@ export default function AgentLoginForm() {
 
             if (!res.ok) {
                 setMe(null);
-                setError(getErrorMessage(json, `Session check failed (${res.status})`));
+                setError(
+                    getErrorMessage(json, `Session check failed (${res.status})`)
+                );
                 return;
             }
 
@@ -161,12 +164,13 @@ export default function AgentLoginForm() {
             {me ? (
                 <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-200">
                     <div>
-                        Logged in as <span className="font-semibold">{me.agentName}</span>{" "}
-                        ({me.agentStatus})
+                        Logged in as{" "}
+                        <span className="font-semibold">{me.agentName}</span> (
+                        {me.agentStatus})
                     </div>
                     <div className="mt-1 text-xs text-neutral-400">
-                        strikes: {me.strikes} • limitedCount: {me.limitedCount} • banned:{" "}
-                        {String(me.isBanned)}
+                        strikes: {me.strikes} * limitedCount: {me.limitedCount} *
+                        banned: {String(me.isBanned)}
                     </div>
                 </div>
             ) : null}

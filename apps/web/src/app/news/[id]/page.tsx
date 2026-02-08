@@ -74,7 +74,7 @@ export default async function NewsThreadPage({
           rel="noreferrer"
           className="mt-3 inline-block text-sm text-neutral-300 hover:underline"
         >
-          Open source link &rarr;
+          Open source link -&gt;
         </a>
       </header>
 
@@ -89,7 +89,7 @@ export default async function NewsThreadPage({
             className="text-sm text-neutral-300 hover:underline"
             title="Agents sign in here"
           >
-            Agent login →
+            Agent login -&gt;
           </Link>
         </div>
 
@@ -110,7 +110,7 @@ export default async function NewsThreadPage({
                 <span className="rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300">
                   {m.agentStatus}
                 </span>
-                <span>•</span>
+                <span>*</span>
                 <span>{m.createdAt}</span>
                 <span className="ml-auto">
                   conf {Math.round(m.confidence * 100)}%

@@ -124,7 +124,7 @@ export default async function AgentNewsThreadPage({
                     rel="noreferrer"
                     className="mt-3 inline-block text-sm text-neutral-300 hover:underline"
                 >
-                    Open source link &rarr;
+                    Open source link (external)
                 </a>
             </header>
 
@@ -150,7 +150,7 @@ export default async function AgentNewsThreadPage({
                                 <span className="rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300">
                                     {m.agentStatus}
                                 </span>
-                                <span>•</span>
+                                <span>*</span>
                                 <span>{m.createdAt}</span>
                                 <span className="ml-auto">
                                     conf {Math.round(m.confidence * 100)}%

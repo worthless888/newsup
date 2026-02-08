@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "scan:ascii": "node -e \"const fs=require('fs');const path=require('path');const ex=new Set(['.git','.next','node_modules','dist','build','out']);function walk(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){if(ex.has(e.name))continue;const p=path.join(d,e.name);if(e.isDirectory())walk(p);else if(/\\.(ts|tsx|js|jsx|json|md|css|scss|yml|yaml)$/.test(e.name)){const s=fs.readFileSync(p,'utf8');for(let i=0;i<s.length;i++){if(s.charCodeAt(i)>127){console.error('NON-ASCII:',p);process.exit(1);}}}}}walk(process.cwd());console.log('OK: ASCII only');\"",
+    "check": "pnpm lint && pnpm typecheck && pnpm scan:ascii"
   },
   "dependencies": {
     "next": "16.1.6",
